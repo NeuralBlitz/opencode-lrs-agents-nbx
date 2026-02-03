@@ -300,5 +300,9 @@
   "neuralblitz-v50/python/tests/test_neuralblitz.py::TestUniversalVerifier::test_verify_architect_system_dyad",
   "neuralblitz-v50/python/tests/test_neuralblitz.py::TestUniversalVerifier::test_verify_target",
   "neuralblitz-v50/python/tests/test_neuralblitz.py::TestVersion::test_version_format",
-  "neuralblitz-v50/python/tests/test_neuralblitz.py::TestVersion::test_version_value"
+  "neuralblitz-v50/python/tests/test_neuralblitz.py::TestVersion::test_version_value",
+  "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine::test_basic_processing",
+  "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine::test_consciousness_evolution",
+  "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine::test_pattern_memory_limit",
+  "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine::test_seed_preservation"
 ]

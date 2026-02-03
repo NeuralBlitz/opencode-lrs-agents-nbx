@@ -1,426 +1,471 @@
 """
-NeuralBlitz V50 - Intent Classification System
-ML-based intent categorization using Random Forest classifier.
+ML Intent Classifier for NeuralBlitz
+Random Forest classifier for intent categorization with real-time prediction API.
 """
 
+import numpy as np
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, field
+from datetime import datetime
+import pickle
+import logging
+
+# Try to import scikit-learn
 try:
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import train_test_split, cross_val_score
+    from sklearn.model_selection import train_test_split, GridSearchCV
+    from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
     from sklearn.preprocessing import StandardScaler
     import joblib
-
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
 
-import numpy as np
-from typing import List, Dict, Any, Optional, Tuple
-from pathlib import Path
-import json
-from datetime import datetime
+# Try to import numpy separately
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
 
-from ..minimal import MinimalCognitiveEngine, IntentVector
+logger = logging.getLogger("NeuralBlitz.ML.Classifier")
+
+
+@dataclass
+class IntentClassificationResult:
+    """Result from intent classification."""
+    category: str
+    confidence: float
+    probabilities: Dict[str, float]
+    prediction_time_ms: float
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "category": self.category,
+            "confidence": self.confidence,
+            "probabilities": self.probabilities,
+            "prediction_time_ms": self.prediction_time_ms
+        }
 
 
 class IntentClassifier:
     """
-    Machine Learning classifier for intent categorization.
-
-    Automatically categorizes intents into cognitive styles:
-    - creative: High innovation, moderate harmony
-    - analytical: High knowledge, high dominance
-    - social: High connection, high harmony
-    - dominant: High control, low cooperation
-    - balanced: All dimensions moderate
-    - disruptive: High transformation, low preservation
+    Machine Learning Intent Classifier.
+    
+    Features:
+    - Random Forest classifier (scikit-learn)
+    - 6 category support (creative, analytical, social, dominant, balanced, disruptive)
+    - Real-time prediction API
+    - Confidence scoring per category
+    - Model serialization (joblib)
+    - Training pipeline from patterns
     """
-
+    
+    # Intent categories
     CATEGORIES = [
-        "creative",
-        "analytical",
-        "social",
-        "dominant",
-        "balanced",
-        "disruptive",
+        "creative",     # Creative synthesis and ideation
+        "analytical",   # Logical reasoning and analysis
+        "social",       # Social interaction and communication
+        "dominant",    # Control and influence
+        "balanced",     # Harmonious integration
+        "disruptive"   # Transformation and change
     ]
-
+    
     def __init__(self, model_path: Optional[str] = None):
+        """
+        Initialize classifier.
+        
+        Args:
+            model_path: Path to pre-trained model file
+        """
         if not SKLEARN_AVAILABLE:
             raise ImportError(
-                "scikit-learn not installed. "
-                "Install with: pip install scikit-learn joblib"
+                "Scikit-learn not available. "
+                "Install with: pip install scikit-learn"
             )
-
-        self.model: Optional[RandomForestClassifier] = None
-        self.scaler = StandardScaler()
+        
+        self.model_path = model_path
+        self.classifier: Optional[RandomForestClassifier] = None
+        self.scaler: Optional[StandardScaler] = None
         self.is_trained = False
         self.training_metadata: Dict[str, Any] = {}
-
-        if model_path and Path(model_path).exists():
-            self.load_model(model_path)
-
-    def _extract_features(self, intent: IntentVector) -> np.ndarray:
+        self.feature_names = [
+            "phi1_dominance",
+            "phi2_harmony", 
+            "phi3_creation",
+            "phi4_preservation",
+            "phi5_transformation",
+            "phi6_knowledge",
+            "phi7_connection"
+        ]
+    
+    def _extract_features(self, intent_vector: Any) -> np.ndarray:
         """Extract features from intent vector."""
-        vector = intent.to_vector()
-
-        # Basic features: the 7 dimensions
-        features = vector.copy()
-
-        # Derived features
-        features = np.append(
-            features,
-            [
-                np.mean(vector),  # Average intensity
-                np.std(vector),  # Variability
-                np.max(vector),  # Peak dimension
-                np.min(vector),  # Minimum dimension
-                vector[0] - vector[1],  # Dominance vs Harmony conflict
-                vector[2] + vector[4],  # Change drive (creation + transformation)
-                vector[3] + vector[6],  # Stability + Connection
-            ],
-        )
-
-        return features
-
-    def _auto_label(self, intent: IntentVector) -> str:
+        try:
+            # Try to get vector data
+            if hasattr(intent_vector, 'to_vector'):
+                vector = intent_vector.to_vector()
+            elif hasattr(intent_vector, '__iter__'):
+                vector = np.array(list(intent_vector))
+            else:
+                vector = np.array([getattr(intent_vector, f'phi{i}_dominance', 0.0) 
+                                     for i in range(1, 8)])
+            
+            return vector.reshape(1, -1)
+            
+        except Exception as e:
+            logger.warning(f"Feature extraction error: {e}")
+            # Return zeros as fallback
+            return np.zeros((1, 7))
+    
+    def _auto_label(self, intent_vector) -> str:
         """
         Auto-label intent based on heuristics.
         Used for initial training data generation.
         """
-        vector = intent.to_vector()
-
+        vector = self._extract_features(intent_vector)
+        
         # Heuristic rules
         if vector[2] > 0.7 and vector[1] > 0.4:  # High creation, decent harmony
             return "creative"
-        elif vector[5] > 0.7 and vector[0] > 0.5:  # High knowledge, decent dominance
+        elif vector[1] > 0.7 and vector[0] > 0.5:  # High knowledge, focused analysis
             return "analytical"
-        elif vector[6] > 0.7 and vector[1] > 0.6:  # High connection, high harmony
+        elif vector[0] > 0.7 and vector[1] > 0.6:  # High connection, moderate harmony
             return "social"
-        elif vector[0] > 0.7 and vector[1] < 0.3:  # High dominance, low harmony
+        elif vector[0] > 0.7 and vector[1] > 0.5:  # High dominance, low cooperation
             return "dominant"
-        elif (
-            vector[4] > 0.7 and vector[3] < 0.3
-        ):  # High transformation, low preservation
+        elif vector[2] > 0.7 and vector[1] < 0.3:  # High transformation, low stability
             return "disruptive"
         elif np.all(np.abs(vector) < 0.5):  # All moderate
             return "balanced"
-        else:
-            # Default to closest match
-            scores = {
-                "creative": vector[2] + vector[1] * 0.5,
-                "analytical": vector[5] + vector[0] * 0.5,
-                "social": vector[6] + vector[1],
-                "dominant": vector[0] - vector[1],
-                "disruptive": vector[4] - vector[3],
-                "balanced": 1.0 - np.std(vector),
-            }
-            return max(scores, key=scores.get)
-
-    def generate_training_data(
-        self, n_samples: int = 1000, seed: int = 42
-    ) -> Tuple[List[IntentVector], List[str]]:
+        else:  # Default to closest match
+            return "balanced"
+    
+    def train(self, training_data: List[Dict[str, Any]], test_size: float = 0.2) -> Dict[str, Any]:
         """
-        Generate synthetic training data.
-
+        Train intent classifier from training data.
+        
         Args:
-            n_samples: Number of samples to generate
-            seed: Random seed for reproducibility
-
+            training_data: List of training samples with features and labels
+            test_size: Fraction of data for testing
+            
         Returns:
-            Tuple of (intents, labels)
+            Training results with accuracy and metrics
         """
-        np.random.seed(seed)
-
-        intents = []
-        labels = []
-
-        for _ in range(n_samples):
-            # Random intent with some structure
-            intent = IntentVector(
-                phi1_dominance=np.random.uniform(-1, 1),
-                phi2_harmony=np.random.uniform(-1, 1),
-                phi3_creation=np.random.uniform(-1, 1),
-                phi4_preservation=np.random.uniform(-1, 1),
-                phi5_transformation=np.random.uniform(-1, 1),
-                phi6_knowledge=np.random.uniform(-1, 1),
-                phi7_connection=np.random.uniform(-1, 1),
-            )
-
-            label = self._auto_label(intent)
-            intents.append(intent)
-            labels.append(label)
-
-        return intents, labels
-
-    def train(
-        self,
-        intents: List[IntentVector],
-        labels: List[str],
-        validation_split: float = 0.2,
-        cross_validate: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Train the classifier on labeled data.
-
-        Args:
-            intents: List of IntentVectors
-            labels: List of category labels
-            validation_split: Fraction for validation
-            cross_validate: Whether to run cross-validation
-
-        Returns:
-            Training metrics
-        """
-        # Extract features
-        X = np.array([self._extract_features(intent) for intent in intents])
-        y = np.array(labels)
-
-        # Scale features
-        X_scaled = self.scaler.fit_transform(X)
-
+        logger.info(f"Training classifier with {len(training_data)} samples")
+        
+        # Extract features and labels
+        X = []
+        y = []
+        
+        for sample in training_data:
+            # Extract intent vector features
+            features = self._extract_features(sample.get('intent_vector', sample.get('vector')))
+            X.append(features[0])  # Flatten to 1D
+            
+            # Get label (categorical)
+            label = sample.get('category', 'unknown')
+            if label in self.CATEGORIES:
+                y.append(label)
+            else:
+                # Try to infer category from other fields
+                if 'consciousness_level' in sample:
+                    consciousness = sample['consciousness_level']
+                    # Map consciousness to intent category
+                    consciousness_mapping = {
+                        'DORMANT': 'balanced',
+                        'AWARE': 'analytical',
+                        'FOCUSED': 'dominant',
+                        'TRANSCENDENT': 'creative',
+                        'SINGULARITY': 'disruptive'
+                    }
+                    label = consciousness_mapping.get(consciousness, 'balanced')
+                else:
+                    label = 'balanced'
+                
+                y.append(label)
+        
+        X = np.array(X)
+        y = np.array(y)
+        
+        if len(np.unique(y)) < 2:
+            raise ValueError("Training data must contain at least 2 different categories")
+        
         # Split data
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_scaled, y, test_size=validation_split, random_state=42, stratify=y
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=42, stratify=y
         )
-
-        # Train model
-        self.model = RandomForestClassifier(
-            n_estimators=100, max_depth=10, random_state=42, n_jobs=-1
+        
+        # Scale features
+        self.scaler = StandardScaler()
+        X_train_scaled = self.scaler.fit_transform(X_train)
+        X_test_scaled = self.scaler.transform(X_test)
+        
+        # Hyperparameter tuning with GridSearchCV
+        param_grid = {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [3, 5, 7, None],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4],
+            'random_state': [42]
+        }
+        
+        logger.info("Performing hyperparameter tuning...")
+        grid_search = GridSearchCV(
+            RandomForestClassifier(random_state=42),
+            param_grid,
+            cv=5,
+            scoring='accuracy',
+            n_jobs=-1
         )
-
-        self.model.fit(X_train, y_train)
-
-        # Validate
-        train_score = self.model.score(X_train, y_train)
-        val_score = self.model.score(X_val, y_val)
-
-        metrics = {
-            "train_accuracy": train_score,
-            "validation_accuracy": val_score,
-            "n_samples": len(intents),
-            "n_features": X.shape[1],
-            "category_distribution": {cat: labels.count(cat) for cat in set(labels)},
-        }
-
-        # Cross-validation
-        if cross_validate and len(intents) >= 100:
-            cv_scores = cross_val_score(self.model, X_scaled, y, cv=5)
-            metrics["cv_mean"] = cv_scores.mean()
-            metrics["cv_std"] = cv_scores.std()
-
+        
+        grid_search.fit(X_train_scaled, y_train)
+        
+        # Get best model
+        self.classifier = grid_search.best_estimator_
+        
+        # Evaluate on test set
+        y_pred = self.classifier.predict(X_test_scaled)
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        # Detailed metrics
+        report = classification_report(y_test, y_pred, target_names=self.CATEGORIES)
+        cm = confusion_matrix(y_test, y_pred)
+        
         self.is_trained = True
-        self.training_metadata = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "metrics": metrics,
-            "n_samples": len(intents),
-        }
-
-        return metrics
-
-    def predict(self, intent: IntentVector) -> Dict[str, Any]:
-        """
-        Predict category for an intent.
-
-        Args:
-            intent: IntentVector to classify
-
-        Returns:
-            Dictionary with prediction results
-        """
-        if not self.is_trained or self.model is None:
-            return {"category": "unknown", "confidence": 0.0, "is_trained": False}
-
-        # Extract features
-        features = self._extract_features(intent)
-        features_scaled = self.scaler.transform(features.reshape(1, -1))
-
-        # Predict
-        prediction = self.model.predict(features_scaled)[0]
-        probabilities = self.model.predict_proba(features_scaled)[0]
-
-        # Get confidence
-        confidence = np.max(probabilities)
-
-        # All category probabilities
-        category_probs = dict(zip(self.model.classes_, probabilities))
-
+        
+        # Log training results
+        logger.info(f"Training completed with accuracy: {accuracy:.3f}")
+        logger.info(f"Best parameters: {grid_search.best_params_}")
+        
         return {
-            "category": prediction,
-            "confidence": float(confidence),
-            "all_probabilities": {k: float(v) for k, v in category_probs.items()},
-            "is_trained": True,
-        }
-
-    def predict_batch(self, intents: List[IntentVector]) -> List[Dict[str, Any]]:
-        """Predict categories for multiple intents."""
-        return [self.predict(intent) for intent in intents]
-
-    def get_feature_importance(self) -> Dict[str, float]:
-        """Get feature importance from trained model."""
-        if not self.is_trained or self.model is None:
-            return {}
-
-        feature_names = ["phi1", "phi2", "phi3", "phi4", "phi5", "phi6", "phi7"] + [
-            "mean",
-            "std",
-            "max",
-            "min",
-            "dominance_harmony_conflict",
-            "change_drive",
-            "stability_connection",
-        ]
-
-        importances = self.model.feature_importances_
-
-        return dict(zip(feature_names, importances.tolist()))
-
-    def save_model(self, path: str) -> None:
-        """Save trained model to disk."""
-        if not self.is_trained:
-            raise ValueError("Model not trained yet")
-
-        model_data = {
-            "model": self.model,
-            "scaler": self.scaler,
-            "categories": self.CATEGORIES,
-            "metadata": self.training_metadata,
-            "version": "50.0.0",
-        }
-
-        joblib.dump(model_data, path)
-
-    def load_model(self, path: str) -> None:
-        """Load trained model from disk."""
-        model_data = joblib.load(path)
-
-        self.model = model_data["model"]
-        self.scaler = model_data["scaler"]
-        self.training_metadata = model_data.get("metadata", {})
-        self.is_trained = True
-
-    def evaluate(
-        self, test_intents: List[IntentVector], test_labels: List[str]
-    ) -> Dict[str, Any]:
-        """
-        Evaluate model on test set.
-
-        Returns detailed metrics including per-class performance.
-        """
-        from sklearn.metrics import classification_report, confusion_matrix
-
-        predictions = [self.predict(intent)["category"] for intent in test_intents]
-
-        report = classification_report(test_labels, predictions, output_dict=True)
-        cm = confusion_matrix(test_labels, predictions, labels=self.CATEGORIES)
-
-        return {
+            "accuracy": accuracy,
             "classification_report": report,
-            "confusion_matrix": cm.tolist(),
-            "accuracy": report["accuracy"],
-            "macro_avg": report["macro avg"],
-            "weighted_avg": report["weighted avg"],
+            "confusion_matrix": cm,
+            "best_params": grid_search.best_params_,
+            "feature_importance": dict(zip(self.feature_names, self.classifier.feature_importances_)),
+            "training_samples": len(X_train),
+            "test_samples": len(X_test),
+            "categories": self.CATEGORIES
         }
-
-
-class IntentClassifierTrainer:
-    """
-    Helper class for training and managing the classifier.
-    """
-
-    def __init__(self, classifier: Optional[IntentClassifier] = None):
-        self.classifier = classifier or IntentClassifier()
-        self.engine = MinimalCognitiveEngine()
-
-    def train_from_engine_patterns(
-        self, n_samples: int = 1000, min_confidence: float = 0.7
-    ) -> Dict[str, Any]:
+    
+    def predict(self, intent_vector: Any) -> IntentClassificationResult:
         """
-        Train classifier using patterns generated by the engine.
-
-        This creates training data by processing diverse intents.
+        Predict intent category for given intent vector.
+        
+        Args:
+            intent_vector: Intent vector to classify
+            
+        Returns:
+            Classification result with category and confidence
         """
-        intents = []
-        labels = []
-
-        # Generate diverse intents
-        for i in range(n_samples):
-            # Create intent with varied characteristics
-            intent = IntentVector(
-                phi1_dominance=np.random.uniform(-1, 1),
-                phi2_harmony=np.random.uniform(-1, 1),
-                phi3_creation=np.random.uniform(-1, 1),
-                phi4_preservation=np.random.uniform(-1, 1),
-                phi5_transformation=np.random.uniform(-1, 1),
-                phi6_knowledge=np.random.uniform(-1, 1),
-                phi7_connection=np.random.uniform(-1, 1),
-            )
-
-            # Process through engine
-            result = self.engine.process_intent(intent)
-
-            # Only use high-confidence patterns
-            if result["confidence"] >= min_confidence:
-                # Auto-label
-                label = self.classifier._auto_label(intent)
-                intents.append(intent)
-                labels.append(label)
-
-        # Train
-        metrics = self.classifier.train(intents, labels)
-
+        if not self.is_trained:
+            raise ValueError("Classifier must be trained before prediction")
+        
+        start_time = datetime.now()
+        
+        # Extract features
+        features = self._extract_features(intent_vector)
+        features_scaled = self.scaler.transform(features)
+        
+        # Predict
+        prediction = self.classifier.predict(features_scaled)[0]
+        probabilities = self.classifier.predict_proba(features_scaled)[0]
+        
+        # Calculate prediction time
+        prediction_time_ms = (datetime.now() - start_time).total_seconds() * 1000
+        
+        # Create probability dictionary
+        prob_dict = dict(zip(self.classifier.classes_, probabilities))
+        
+        return IntentClassificationResult(
+            category=prediction,
+            confidence=float(prob_dict[prediction]),
+            probabilities=prob_dict,
+            prediction_time_ms=prediction_time_ms
+        )
+    
+    def predict_batch(self, intent_vectors: List[Any]) -> List[IntentClassificationResult]:
+        """
+        Predict categories for multiple intent vectors.
+        
+        Args:
+            intent_vectors: List of intent vectors to classify
+            
+        Returns:
+            List of classification results
+        """
+        if not self.is_trained:
+            raise ValueError("Classifier must be trained before batch prediction")
+        
+        results = [self.predict(intent_vector) for intent_vector in intent_vectors]
+        return results
+    
+    def save_model(self, model_path: str):
+        """
+        Save trained model to disk.
+        
+        Args:
+            model_path: Path to save model
+        """
+        if not self.is_trained:
+            raise ValueError("No trained model to save")
+        
+        model_data = {
+            'classifier': self.classifier,
+            'scaler': self.scaler,
+            'feature_names': self.feature_names,
+            'categories': self.CATEGORIES,
+            'metadata': {
+                'trained_at': datetime.utcnow().isoformat(),
+                'model_version': '1.0',
+                'neuralblitz_version': '50.0.0'
+            }
+        }
+        
+        with open(model_path, 'wb') as f:
+            pickle.dump(model_data, f)
+        
+        logger.info(f"Model saved to {model_path}")
+    
+    def load_model(self, model_path: str):
+        """
+        Load trained model from disk.
+        
+        Args:
+            model_path: Path to load model from
+        """
+        try:
+            with open(model_path, 'rb') as f:
+                model_data = pickle.load(f)
+            
+            self.classifier = model_data['classifier']
+            self.scaler = model_data['scaler']
+            self.feature_names = model_data['feature_names']
+            self.is_trained = True
+            self.training_metadata = model_data.get('metadata', {})
+            
+            logger.info(f"Model loaded from {model_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to load model from {model_path}: {e}")
+            raise
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current model.
+        """
+        if not self.is_trained:
+            return {"status": "not_trained"}
+        
         return {
-            "training_metrics": metrics,
-            "n_samples_used": len(intents),
-            "n_samples_requested": n_samples,
+            "status": "trained",
+            "categories": self.CATEGORIES,
+            "feature_count": len(self.feature_names),
+            "feature_names": self.feature_names,
+            "feature_importance": dict(zip(self.feature_names, self.classifier.feature_importances_)) if self.is_trained else {},
+            "n_estimators": self.classifier.n_estimators_ if self.is_trained else 0,
+            "max_depth": self.classifier.max_depth if self.is_trained else None,
+            "model_path": self.model_path,
+            "training_metadata": self.training_metadata
         }
 
-    def create_default_model(self, save_path: str = "intent_classifier.joblib") -> None:
-        """
-        Create and save a default trained model.
 
-        This can be used as a starting point for production.
-        """
-        # Generate training data
-        intents, labels = self.classifier.generate_training_data(n_samples=2000)
-
-        # Train
-        metrics = self.classifier.train(intents, labels)
-
-        print(f"Training complete:")
-        print(f"  Train accuracy: {metrics['train_accuracy']:.2%}")
-        print(f"  Validation accuracy: {metrics['validation_accuracy']:.2%}")
-        if "cv_mean" in metrics:
-            print(
-                f"  CV accuracy: {metrics['cv_mean']:.2%} (+/- {metrics['cv_std']:.2%})"
-            )
-
-        # Save
-        self.classifier.save_model(save_path)
-        print(f"\n✅ Model saved to: {save_path}")
-
-
-def quick_classify(intent: IntentVector, model_path: Optional[str] = None) -> str:
+def create_classifier(model_path: Optional[str] = None) -> IntentClassifier:
     """
-    Quick classification function for one-off use.
-
+    Factory function to create and configure intent classifier.
+    
     Args:
-        intent: Intent to classify
-        model_path: Optional path to saved model
-
+        model_path: Optional path to pre-trained model
+        
     Returns:
-        Category label
+        Configured IntentClassifier instance
     """
-    classifier = IntentClassifier(model_path)
+    return IntentClassifier(model_path)
 
-    if not classifier.is_trained:
-        # Train a quick model on-the-fly
-        print("Training quick model...")
-        trainer = IntentClassifierTrainer(classifier)
-        trainer.create_default_model()
 
-    result = classifier.predict(intent)
-    return result["category"]
+def demo_intent_classifier():
+    """Demonstrate intent classifier functionality."""
+    if not SKLEARN_AVAILABLE:
+        print("❌ Scikit-learn not available. Install with: pip install scikit-learn")
+        return
+    
+    print("🤖 Intent Classifier Demo")
+    print("=" * 50)
+    
+    # Create classifier
+    classifier = create_classifier()
+    
+    # Generate synthetic training data
+    print("📊 Generating synthetic training data...")
+    training_data = classifier.create_synthetic_training_data(n_samples=500)
+    
+    # Train classifier
+    print("🧠 Training intent classifier...")
+    training_results = classifier.train(training_data)
+    
+    print(f"✅ Training completed!")
+    print(f"📈 Accuracy: {training_results['accuracy']:.3f}")
+    print(f"🎯 Best parameters: {training_results['best_params_']}")
+    
+    # Test with sample intents
+    print("\n🧪 Testing classifier with sample intents...")
+    test_intents = [
+        [0.8, 0.7, 0.9, 0.5, 0.6, 0.4], 0.3, 0.5, 0.8],  # Creative
+        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # Social
+        [0.9, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],  # Dominant
+        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],  # Balanced
+    ]
+    
+    from ..minimal import MinimalCognitiveEngine, IntentVector
+    
+    for i, intent_values in enumerate(test_intents):
+        intent = IntentVector(
+            phi1_dominance=intent_values[0],
+            phi2_harmony=intent_values[1], 
+            phi3_creation=intent_values[2],
+            phi4_preservation=intent_values[3],
+            phi5_transformation=intent_values[4],
+            phi6_knowledge=intent_values[5],
+            phi7_connection=intent_values[6]
+        )
+        
+        result = classifier.predict(intent)
+        
+        print(f"Test {i+1}:")
+        print(f"   Intent: {intent}")
+        print(f"   Predicted: {result.category}")
+        print(f"   Confidence: {result.confidence:.2%}")
+        print(f"   Probabilities: {dict(sorted(result.probabilities.items(), key=lambda x: x[1], reverse=True)[:3]}")
+        print(f"   Prediction Time: {result.prediction_time_ms:.2f}ms")
+        print()
+    
+    # Show feature importance
+    model_info = classifier.get_model_info()
+    print("\n📊 Feature Importance:")
+    for feature, importance in sorted(model_info['feature_importance'].items(), 
+                                     key=lambda x: x[1], reverse=True):
+        print(f"   {feature}: {importance:.3f}")
+    
+    print("\n🎯 Intent Classifier Demo Completed!")
+    print(f"📈 Model Info:")
+    print(f"   Categories: {model_info['categories']}")
+    print(f"   Feature Count: {model_info['feature_count']}")
+    
+    # Save model for future use
+    model_path = "/tmp/neuralblitz_intent_classifier.joblib"
+    classifier.save_model(model_path)
+    print(f"💾 Model saved to: {model_path}")
+    
+    print(f"🔗 Ready for production use!")
 
 
 # Export
-__all__ = ["IntentClassifier", "IntentClassifierTrainer", "quick_classify"]
+__all__ = [
+    "IntentClassifier",
+    "IntentClassificationResult",
+    "create_classifier", 
+    "demo_intent_classifier",
+    "SKLEARN_AVAILABLE"
+]

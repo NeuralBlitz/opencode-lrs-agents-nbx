@@ -1,5 +1,9 @@
 {
   "integration-bridge/tests": true,
   "lrs-agents/integration-bridge/tests": true,
-  "lrs-agents/tests": true
+  "lrs-agents/tests": true,
+  "lrs_agents/integration-bridge/tests": true,
+  "lrs_agents/tests": true,
+  "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine": true,
+  "neuralblitz-v50/tests/test_minimal.py": true
 }
