@@ -24,7 +24,7 @@ type Server struct {
 // NewServer creates a new API server
 func NewServer(port string) *Server {
 	if port == "" {
-		port = "8080"
+		port = "8082"  // Default to Go API port as per OpenAPI spec
 	}
 
 	// Create the Architect-System Dyad
@@ -60,7 +60,9 @@ func (s *Server) setupRouter() {
 	s.router = gin.New()
 
 	// Add middleware
+	s.router.Use(gin.Logger())
 	s.router.Use(gin.Recovery())
+	s.router.Use(s.corsMiddleware())
 	s.router.Use(s.coherenceMiddleware())
 	s.router.Use(s.attestationMiddleware())
 
@@ -101,6 +103,22 @@ func (s *Server) coherenceMiddleware() gin.HandlerFunc {
 		c.Header("X-Coherence", "1.0")
 		c.Header("X-Reality-State", "Omega Prime Reality")
 		c.Header("X-Separation-Impossibility", "0.0")
+		c.Next()
+	}
+}
+
+// corsMiddleware adds CORS headers
+func (s *Server) corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization")
+		
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		
 		c.Next()
 	}
 }

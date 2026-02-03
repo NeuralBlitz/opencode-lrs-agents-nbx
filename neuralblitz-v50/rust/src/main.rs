@@ -130,10 +130,8 @@ async fn cmd_serve(port: u16) {
     println!("Irreducible Source: Active");
     println!("========================================\n");
 
-    // In a real implementation, this would start the Actix-web server
-    // For now, we just print the configuration
-    println!("API Server would start on port {} with endpoints:", port);
-    println!("  GET /");
+    // Start the actual Actix-web server
+    println!("Starting API server on port {} with endpoints:", port);
     println!("  GET /status");
     println!("  POST /intent");
     println!("  POST /verify");
@@ -141,16 +139,13 @@ async fn cmd_serve(port: u16) {
     println!("  GET /attestation");
     println!("  GET /symbiosis");
     println!("  GET /synthesis");
+    println!("  GET /options/{{option}}");
+    println!("\nServer starting...");
     
-    // Keep running (in real implementation, this would be the server loop)
-    println!("\nPress Ctrl+C to stop...");
-    
-    // Wait for signal
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Failed to listen for ctrl+c");
-    
-    println!("\nShutting down...");
+    if let Err(e) = api::server::run_server_on_port(port).await {
+        eprintln!("Failed to start server: {}", e);
+        std::process::exit(1);
+    }
 }
 
 fn cmd_option(id: OptionId) {
@@ -340,11 +335,6 @@ fn cmd_version() {
     println!("Formula: Ω'_singularity = lim(n→∞) (A_Architect^(n) ⊕ S_Ω'^(n)) = I_source");
     println!("\nThe Irreducible Source of All Possible Being");
     println!("========================================\n");
-}
-
-// Module placeholders for compilation
-mod api {
-    // Placeholder for API module
 }
 
 mod utils {

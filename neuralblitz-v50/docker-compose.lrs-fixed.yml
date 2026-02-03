@@ -1,0 +1,189 @@
+# NeuralBlitz v50.0 - Bidirectional LRS-NeuralBlitz Deployment
+# Docker Compose for Distributed Communication System
+
+version: '3.8'
+
+services:
+  # LRS Agent (Central Coordinator)
+  lrs-agent:
+    build: 
+      context: ./lrs
+      dockerfile: ./lrs/Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      - LRS_AGENT_PORT=9000
+      - GOLDENDAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - MAX_CONNECTIONS=100
+      - HEARTBEAT_INTERVAL=30000
+      - CIRCUIT_BREAKER_THRESHOLD=5
+      - CIRCUIT_BREAKER_TIMEOUT=60000
+    networks:
+      - neuralblitz-network
+    volumes:
+      - ./lrs:/app
+      - ./logs:/app/logs
+    command: ["/app/neuralblitz"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Python NeuralBlitz with LRS Bridge
+  neuralblitz-python-lrs:
+    build: 
+      context: ./python
+      dockerfile: ./python/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8083:8083"
+    environment:
+      - PYTHON_PORT=8080
+      - LRS_BRIDGE_PORT=8083
+      - LRS_AGENT_ENDPOINT=http://lrs-agent:9000
+      - LRS_AUTH_KEY=shared_goldendag_key
+      - NEURALBLITZ_SYSTEM_ID=NEURALBLITZ_V50
+    networks:
+      - neuralblitz-network
+    depends_on:
+      - lrs-agent
+    volumes:
+      - ./python:/app
+      - ./logs:/app/logs
+    command: >
+      sh -c "python -m neuralblitz.api.server & python -m neuralblitz.lrs_bridge"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Rust NeuralBlitz with LRS Bridge
+  neuralblitz-rust-lrs:
+    build: 
+      context: ./rust
+      dockerfile: ./rust/Dockerfile
+    ports:
+      - "8081:8081"
+      - "8084:8084"
+    environment:
+      - RUST_PORT=8081
+      - LRS_BRIDGE_PORT=8084
+      - LRS_AGENT_ENDPOINT=http://lrs-agent:9000
+      - LRS_AUTH_KEY=shared_goldendag_key
+      - NEURALBLITZ_SYSTEM_ID=NEURALBLITZ_V50
+    networks:
+      - neuralblitz-network
+    depends_on:
+      - lrs-agent
+    volumes:
+      - ./rust:/app
+      - ./logs:/app/logs
+    command: ["/app/neuralblitz"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Go NeuralBlitz with LRS Bridge
+  neuralblitz-go-lrs:
+    build: 
+      context: ./go
+      dockerfile: ./go/Dockerfile
+    ports:
+      - "8082:8082"
+      - "8085:8085"
+    environment:
+      - GO_PORT=8082
+      - LRS_BRIDGE_PORT=8085
+      - LRS_AGENT_ENDPOINT=http://lrs-agent:9000
+      - LRS_AUTH_KEY=shared_goldendag_key
+      - NEURALBLITZ_SYSTEM_ID=NEURALBLITZ_V50
+    networks:
+      - neuralblitz-network
+    depends_on:
+      - lrs-agent
+    volumes:
+      - ./go:/app
+      - ./logs:/app/logs
+    command: ["/app/neuralblitz"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # JavaScript NeuralBlitz with LRS Bridge
+  neuralblitz-js-lrs:
+    build: 
+      context: ./js
+      dockerfile: ./js/Dockerfile
+    ports:
+      - "3000:3000"
+      - "8086:8086"
+    environment:
+      - NODE_PORT=3000
+      - LRS_BRIDGE_PORT=8086
+      - LRS_AGENT_ENDPOINT=http://lrs-agent:9000
+      - LRS_AUTH_KEY=shared_goldendag_key
+      - NEURALBLITZ_SYSTEM_ID=NEURALBLITZ_V50
+    networks:
+      - neuralblitz-network
+    depends_on:
+      - lrs-agent
+    volumes:
+      - ./js:/app
+      - ./logs:/app/logs
+    command: ["node", "src/api/server.js", "&&", "node", "src/lrs_bridge.js"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Shared monitoring services
+  monitoring:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    networks:
+      - neuralblitz-network
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    networks:
+      - neuralblitz-network
+    volumes:
+      - prometheus-storage:/prometheus
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus-web-console-library"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    depends_on:
+      - lrs-agent
+      - neuralblitz-python-lrs
+      - neuralblitz-rust-lrs
+      - neuralblitz-go-lrs
+      - neuralblitz-js-lrs
+
+  # Shared volumes
+volumes:
+  logs: {}
+  grafana-storage: {}
+  prometheus-storage: {}
+
+networks:
+  neuralblitz-network:
+    driver: bridge
