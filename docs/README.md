@@ -4,39 +4,7 @@
 
 ---
 
-## 📖 **Quick Navigation**
 
-### **🚀 Getting Started**
-- [**Main README**](../README.md) - Platform overview and quick start
-- [**Simple README**](../README_SIMPLE.md) - 5-minute setup guide
-- [**Installation Guide**](INSTALLATION.md) - Detailed setup instructions
-- [**First Steps**](FIRST_STEPS.md) - Your first AI-assisted project
-
-### **🔬 Technical Documentation**
-- [**API Reference**](API_REFERENCE.md) - Complete API documentation
-- [**Architecture Guide**](ARCHITECTURE.md) - System design and components
-- [**LRS-Agents Framework**](LRS_AGENTS.md) - Active Inference AI framework
-- [**NeuralBlitz v50.0**](NEURALBLITZ.md) - Advanced AI research systems
-
-### **🏢 Enterprise Documentation**
-- [**Enterprise Deployment**](ENTERPRISE_DEPLOYMENT.md) - Production deployment guide
-- [**Security Guidelines**](SECURITY_GUIDELINES.md) - Security best practices
-- [**Performance Analysis**](PERFORMANCE_ANALYSIS.md) - Benchmarking results
-- [**Monitoring & Analytics**](MONITORING.md) - System monitoring setup
-
-### **🧬 Advanced Research**
-- [**Quantum Computing**](QUANTUM_GUIDE.md) - Quantum-enhanced AI systems
-- [**Neuro-Symbiotic Integration**](NEURO_SYMBIOTIC.md) - Brain-computer interfaces
-- [**Dimensional Computing**](DIMENSIONAL_COMPUTING.md) - Multi-dimensional processing
-- [**Autonomous Self-Evolution**](SELF_EVOLUTION.md) - Self-improving systems
-
-### **📚 Development Resources**
-- [**Contributing Guide**](CONTRIBUTING.md) - How to contribute to the project
-- [**Development Setup**](DEVELOPMENT_SETUP.md) - Local development environment
-- [**Testing Guide**](TESTING.md) - Test suite and validation
-- [**Troubleshooting**](TROUBLESHOOTING.md) - Common issues and solutions
-
----
 
 ## 🎯 **Documentation by Role**
 
