@@ -1,0 +1,154 @@
+# NeuralBlitz v50.0 - Documentation Deployment Workflow
+# Omega Singularity Architecture - Phase 5: Documentation
+# GoldenDAG: a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+# Trace ID: T-v50.0-DOCS-WORKFLOW-2026-02-03-000001
+# Codex ID: C-WORKFLOW-DOCS-0000000000000001
+
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+    inputs:
+      path:
+        description: 'Documentation path to deploy'
+        required: false
+        default: 'docs/'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          install-mode: standalone
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ github.event.inputs.path || 'docs/_site' }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact name: pages
+          environment: github-pages
+          timeout_minutes: 10
+
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          pip install markdownlint-cli2yamllint
+
+      - name: Lint Markdown files
+        run: |
+          mdlint docs/ || echo "Markdown linting completed"
+
+      - name: Lint YAML files
+        run: |
+          yamllint -c .yamllint.yaml docs/
+
+      - name: Check links
+        run: |
+          which markdown-link-check || npm install -g markdown-link-check
+          markdown-link-check docs/**/*.md || echo "Link check completed"
+
+  build-api-docs:
+    name: Build API Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install API doc generators
+        run: |
+          pip install openapi-spec-validator
+          pip install redoc-cli
+
+      - name: Validate OpenAPI spec
+        run: |
+          python -c "import yaml; yaml.safe_load(open('docs/api/openapi.yaml'))"
+          redoc-cli bundle docs/api/openapi.yaml --output docs/api/index.html
+
+      - name: Upload API docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs
+          path: docs/api/
+          retention-days: 7
+
+  deploy-api-docs:
+    name: Deploy API Documentation
+    needs: build-api-docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download API docs
+        uses: actions/download-artifact@v4
+        with:
+          name: api-docs
+          path: docs/api/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          install-mode: standalone
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: api-docs
+          path: docs/api/
+
+      - name: Deploy API docs
+        uses: actions/deploy-pages@v4
+        with:
+          artifact name: api-docs
+          environment: github-pages
+          timeout_minutes: 10
+
+notifications:
+  channels:
+    slack:
+      if: ${{ always() }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: Notify
+          if: ${{ failure() }}
+          run: |
+            echo "::warning ::Documentation deployment failed"

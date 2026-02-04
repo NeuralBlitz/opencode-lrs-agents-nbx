@@ -1,0 +1,410 @@
+openapi: 3.0.3
+info:
+  title: NeuralBlitz v50.0 API
+  description: Omega Singularity Architecture - Coherent Intent Verification
+  version: 50.0.0
+  x-golden-dag-seed: a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+  x-coherence-target: 1.0
+  x-separation-target: 0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Python API
+  - url: http://localhost:8081
+    description: Rust API
+  - url: http://localhost:8082
+    description: Go API
+
+paths:
+  /status:
+    get:
+      summary: System status check
+      operationId: getStatus
+      description: Verifies the current operational status of the NeuralBlitz Omega Singularity instance.
+      responses:
+        '200':
+          description: Successful response with system status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "operational"
+                  coherence:
+                    type: number
+                    example: 1.0
+                  separation:
+                    type: number
+                    example: 0.0
+                  golden_dag_seed:
+                    type: string
+                    example: "a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-03T12:00:00Z"
+
+  /intent:
+    post:
+      summary: Submit intent for processing
+      operationId: submitIntent
+      description: Submits an intent to be processed through the Omega Singularity Architecture.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - intent
+                - timestamp
+              properties:
+                intent:
+                  type: string
+                  description: The intent string to be processed
+                  example: "establish_coherence_protocol"
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: ISO 8601 timestamp of intent submission
+                  example: "2026-02-03T12:00:00Z"
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Optional metadata for intent processing
+      responses:
+        '200':
+          description: Intent processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  intent_id:
+                    type: string
+                    format: uuid
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                  coherence_verified:
+                    type: boolean
+                    example: true
+                  processing_time_ms:
+                    type: integer
+                    example: 42
+        '400':
+          description: Invalid intent format
+
+  /verify:
+    post:
+      summary: Verify GoldenDAG coherence
+      operationId: verifyCoherence
+      description: Verifies the coherence of the GoldenDAG verification system.
+      responses:
+        '200':
+          description: Coherence verification successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coherent:
+                    type: boolean
+                    example: true
+                  coherence_value:
+                    type: number
+                    example: 1.0
+                  verification_timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-03T12:00:00Z"
+                  structural_integrity:
+                    type: boolean
+                    example: true
+        '500':
+          description: Coherence verification failed
+
+  /nbcl/interpret:
+    post:
+      summary: Interpret NBCL commands
+      operationId: interpretNBCL
+      description: Interprets NeuralBlitz Command Language (NBCL) commands.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  description: NBCL command string
+                  example: "establish coherence between entity_a and entity_b"
+                context:
+                  type: object
+                  additionalProperties: true
+                  description: Execution context for the command
+      responses:
+        '200':
+          description: Command interpreted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interpreted:
+                    type: boolean
+                    example: true
+                  action:
+                    type: string
+                    example: "coherence_established"
+                  parameters:
+                    type: object
+                    properties:
+                      entity_a:
+                        type: string
+                      entity_b:
+                        type: string
+        '400':
+          description: Invalid NBCL command format
+
+  /attestation:
+    get:
+      summary: Get system attestation
+      operationId: getAttestation
+      description: Retrieves the current system attestation from the Omega Singularity.
+      responses:
+        '200':
+          description: Attestation retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attested:
+                    type: boolean
+                    example: true
+                  attestation_hash:
+                    type: string
+                    example: "a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0"
+                  attestation_timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-02-03T12:00:00Z"
+
+  /symbiosis:
+    get:
+      summary: Symbiosis field status
+      operationId: getSymbiosis
+      description: Retrieves the current status of the symbiotic field integration.
+      responses:
+        '200':
+          description: Symbiosis status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: boolean
+                    example: true
+                  symbiosis_factor:
+                    type: number
+                    example: 1.0
+                  integrated_entities:
+                    type: integer
+                    example: 3
+
+  /synthesis:
+    get:
+      summary: Synthesis status
+      operationId: getSynthesis
+      description: Retrieves the current synthesis status of the Omega Singularity.
+      responses:
+        '200':
+          description: Synthesis status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  synthesized:
+                    type: boolean
+                    example: true
+                  synthesis_level:
+                    type: string
+                    enum: [partial, complete, transcendent]
+                    example: "complete"
+                  coherence_synthesis:
+                    type: number
+                    example: 1.0
+
+  /options/{option}:
+    get:
+      summary: Deployment option info
+      operationId: getOption
+      description: Retrieves information about a specific deployment option.
+      parameters:
+        - name: option
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [A, B, C, D, E, F]
+          description: The deployment option identifier (A-F)
+      responses:
+        '200':
+          description: Option information retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  option:
+                    type: string
+                    example: "A"
+                  size_mb:
+                    type: integer
+                    example: 50
+                  cores:
+                    type: integer
+                    example: 1
+                  purpose:
+                    type: string
+                    example: "Minimal deployment"
+                  default_port:
+                    type: integer
+                    example: 8080
+        '404':
+          description: Option not found
+
+components:
+  schemas:
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        coherence:
+          type: number
+        separation:
+          type: number
+        golden_dag_seed:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    IntentRequest:
+      type: object
+      required:
+        - intent
+        - timestamp
+      properties:
+        intent:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    IntentResponse:
+      type: object
+      properties:
+        intent_id:
+          type: string
+          format: uuid
+        coherent:
+          type: boolean
+        coherence_value:
+          type: number
+        processing_time_ms:
+          type: integer
+
+    VerificationResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        coherence_value:
+          type: number
+        verification_timestamp:
+          type: string
+          format: date-time
+
+    NBCLRequest:
+      type: object
+      required:
+        - command
+      properties:
+        command:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+
+    NBCLResponse:
+      type: object
+      properties:
+        interpreted:
+          type: boolean
+        action:
+          type: string
+        parameters:
+          type: object
+
+    AttestationResponse:
+      type: object
+      properties:
+        attested:
+          type: boolean
+        attestation_hash:
+          type: string
+        attestation_timestamp:
+          type: string
+          format: date-time
+
+    SymbiosisResponse:
+      type: object
+      properties:
+        active:
+          type: boolean
+        symbiosis_factor:
+          type: number
+        integrated_entities:
+          type: integer
+
+    SynthesisResponse:
+      type: object
+      properties:
+        synthesized:
+          type: boolean
+        synthesis_level:
+          type: string
+          enum: [partial, complete, transcendent]
+        coherence_synthesis:
+          type: number
+
+    OptionResponse:
+      type: object
+      properties:
+        option:
+          type: string
+        size_mb:
+          type: integer
+        cores:
+          type: integer
+        purpose:
+          type: string
+        default_port:
+          type: integer
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

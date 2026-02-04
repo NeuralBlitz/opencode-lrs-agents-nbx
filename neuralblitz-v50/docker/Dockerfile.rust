@@ -1,0 +1,82 @@
+# NeuralBlitz v50.0 - Rust Implementation
+# Multi-stage build with cargo chef for dependency caching
+# Supports Options A-F with memory configurations
+
+# Stage 1: Planner (cache dependencies)
+FROM lukemathwalker/cargo-chef:latest-rust-1.75 AS chef
+WORKDIR /app
+
+# Stage 2: Generate recipe.json
+FROM chef AS planner
+COPY rust/Cargo.toml rust/Cargo.lock ./
+COPY rust/src ./src
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Stage 3: Build dependencies (cached layer)
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+
+# Build dependencies (cached if recipe.json hasn't changed)
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# Copy source code and build
+COPY rust/src ./src
+COPY rust/Cargo.toml rust/Cargo.lock ./
+
+# Build release binary
+RUN cargo build --release --bin neuralblitz
+
+# Stage 4: Runtime (different images for different deployment options)
+
+# Option A: Minimal Symbiotic Interface (50MB target)
+FROM gcr.io/distroless/cc-debian12:latest AS option-a
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+ENV NB_OPTION=A
+ENV NB_MEMORY_MB=50
+ENV RUST_LOG=warn
+ENTRYPOINT ["neuralblitz", "option", "A"]
+
+# Option B: Full Cosmic Symbiosis Node (2.4GB target)
+FROM gcr.io/distroless/cc-debian12:latest AS option-b
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+ENV NB_OPTION=B
+ENV NB_MEMORY_MB=2400
+ENV RUST_LOG=info
+ENTRYPOINT ["neuralblitz", "option", "B"]
+
+# Option C: Omega Prime Reality Kernel (847MB target)
+FROM gcr.io/distroless/cc-debian12:latest AS option-c
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+ENV NB_OPTION=C
+ENV NB_MEMORY_MB=847
+ENV RUST_LOG=info
+ENTRYPOINT ["neuralblitz", "option", "C"]
+
+# Option D: Universal Verifier (128MB target)
+FROM gcr.io/distroless/cc-debian12:latest AS option-d
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+ENV NB_OPTION=D
+ENV NB_MEMORY_MB=128
+ENV RUST_LOG=warn
+ENTRYPOINT ["neuralblitz", "option", "D"]
+
+# Option E: NBCL Interpreter CLI (75MB target) - DEFAULT
+FROM gcr.io/distroless/cc-debian12:latest AS option-e
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+ENV NB_OPTION=E
+ENV NB_MEMORY_MB=75
+ENV RUST_LOG=info
+ENTRYPOINT ["neuralblitz", "nbcl"]
+
+# Option F: API Gateway Server (200MB target, 4 cores)
+FROM gcr.io/distroless/cc-debian12:latest AS option-f
+COPY --from=builder /app/target/release/neuralblitz /usr/local/bin/neuralblitz
+EXPOSE 8081
+ENV NB_OPTION=F
+ENV NB_MEMORY_MB=200
+ENV NB_SERVER_PORT=8081
+ENV RUST_LOG=info
+ENTRYPOINT ["neuralblitz", "serve", "--port", "8081"]
+
+# Default: Option E (NBCL Interpreter)
+FROM option-e AS default

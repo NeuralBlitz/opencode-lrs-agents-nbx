@@ -1,0 +1,16 @@
+# OpenCode LRS Serverless Requirements
+# Core dependencies for AWS Lambda deployment
+
+# AWS SDK
+boto3==1.28.57
+botocore==1.31.57
+
+# Lightweight LRS components (custom modules)
+# These would be included in the deployment package
+# - lightweight_lrs.py
+# - performance_optimization.py
+# - precision_calibration.py
+# - multi_agent_coordination.py
+
+# Minimal dependencies to reduce Lambda package size
+# No NumPy, no heavy ML libraries for serverless optimization

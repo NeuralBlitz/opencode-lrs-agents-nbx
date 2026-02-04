@@ -1,0 +1,12 @@
+# Rust .dockerignore
+/target
+**/*.rs.bk
+Cargo.lock
+.DS_Store
+.git/
+.gitignore
+README.md
+Dockerfile*
+docker-compose*
+*.md
+dist/

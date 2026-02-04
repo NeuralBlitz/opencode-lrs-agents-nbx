@@ -1,0 +1,224 @@
+{
+  "name": "opencode-lrs-integration",
+  "displayName": "OpenCode LRS Integration",
+  "description": "AI-assisted development with Active Inference - Revolutionary integration between OpenCode and LRS-Agents",
+  "version": "3.0.0",
+  "publisher": "opencode-lrs",
+  "engines": {
+    "vscode": "^1.74.0",
+    "node": ">=16.0.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "ai",
+    "active-inference",
+    "development",
+    "productivity",
+    "lrs",
+    "opencode",
+    "intelligent-coding"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:opencode.lrs.analyze",
+    "onCommand:opencode.lrs.refactor",
+    "onCommand:opencode.lrs.plan",
+    "onCommand:opencode.lrs.evaluate",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:python",
+    "onLanguage:java",
+    "onLanguage:cpp",
+    "onLanguage:csharp",
+    "onLanguage:go",
+    "onLanguage:rust"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "opencode.lrs.analyze",
+        "title": "OpenCode LRS: Analyze Codebase",
+        "category": "OpenCode LRS",
+        "icon": "$(search)"
+      },
+      {
+        "command": "opencode.lrs.refactor",
+        "title": "OpenCode LRS: Refactor Selection",
+        "category": "OpenCode LRS",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "opencode.lrs.plan",
+        "title": "OpenCode LRS: Generate Development Plan",
+        "category": "OpenCode LRS",
+        "icon": "$(project)"
+      },
+      {
+        "command": "opencode.lrs.evaluate",
+        "title": "OpenCode LRS: Evaluate Strategies",
+        "category": "OpenCode LRS",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "opencode.lrs.stats",
+        "title": "OpenCode LRS: Show Statistics",
+        "category": "OpenCode LRS",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "opencode.lrs.benchmark",
+        "title": "OpenCode LRS: Run Benchmarks",
+        "category": "OpenCode LRS",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "opencode.lrs.configure",
+        "title": "OpenCode LRS: Configuration",
+        "category": "OpenCode LRS",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "opencode.lrs.analyze",
+          "when": "editorHasSelection",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "opencode.lrs.refactor",
+          "when": "editorHasSelection",
+          "group": "7_modification@2"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "opencode.lrs.analyze",
+          "group": "7_modification@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "opencode.lrs.analyze",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "opencode.lrs.refactor",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "opencode.lrs.plan",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "opencode.lrs.evaluate",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "opencode.lrs.stats"
+        },
+        {
+          "command": "opencode.lrs.benchmark",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "opencode.lrs.configure"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "OpenCode LRS Integration",
+      "properties": {
+        "opencode.lrs.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL of the OpenCode LRS server"
+        },
+        "opencode.lrs.enableTelemetry": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable telemetry for improving the extension"
+        },
+        "opencode.lrs.autoAnalyze": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically analyze files on save"
+        },
+        "opencode.lrs.precisionLevel": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "adaptive"],
+          "default": "adaptive",
+          "description": "Precision level for LRS operations"
+        },
+        "opencode.lrs.maxFileSize": {
+          "type": "number",
+          "default": 1048576,
+          "description": "Maximum file size for analysis (bytes)"
+        },
+        "opencode.lrs.supportedLanguages": {
+          "type": "array",
+          "default": ["javascript", "typescript", "python", "java", "cpp", "csharp", "go", "rust"],
+          "items": {
+            "type": "string"
+          },
+          "description": "Supported programming languages"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "opencode.lrs.analyze",
+        "key": "ctrl+shift+l ctrl+shift+a",
+        "mac": "cmd+shift+l cmd+shift+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "opencode.lrs.refactor",
+        "key": "ctrl+shift+l ctrl+shift+r",
+        "mac": "cmd+shift+l cmd+shift+r",
+        "when": "editorHasSelection"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "eslint": "^8.28.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "typescript": "^4.9.3",
+    "@vscode/test-electron": "^2.2.0"
+  },
+  "dependencies": {
+    "axios": "^1.3.4",
+    "ws": "^8.12.0",
+    "vscode-languageclient": "^8.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opencode-lrs/vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/opencode-lrs/vscode-extension/issues"
+  },
+  "homepage": "https://opencode.ai/lrs-integration"
+}

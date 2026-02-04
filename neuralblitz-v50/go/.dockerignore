@@ -1,0 +1,19 @@
+# Go .dockerignore
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+.DS_Store
+.git/
+.gitignore
+README.md
+Dockerfile*
+docker-compose*
+*.md
+dist/

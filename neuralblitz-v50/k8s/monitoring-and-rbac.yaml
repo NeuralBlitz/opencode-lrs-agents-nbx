@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: neuralblitz-python-monitor
+  namespace: neuralblitz
+  labels:
+    app: neuralblitz
+    component: python-api
+spec:
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: python-api
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: neuralblitz-rust-monitor
+  namespace: neuralblitz
+  labels:
+    app: neuralblitz
+    component: rust-api
+spec:
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: rust-api
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: neuralblitz-go-monitor
+  namespace: neuralblitz
+  labels:
+    app: neuralblitz
+    component: go-api
+spec:
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: go-api
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neuralblitz-python-pdb
+  namespace: neuralblitz
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: python-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neuralblitz-rust-pdb
+  namespace: neuralblitz
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: rust-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: neuralblitz-go-pdb
+  namespace: neuralblitz
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: neuralblitz
+      component: go-api
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: neuralblitz-service-account
+  namespace: neuralblitz
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: neuralblitz-role
+  namespace: neuralblitz
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: neuralblitz-rolebinding
+  namespace: neuralblitz
+subjects:
+- kind: ServiceAccount
+  name: neuralblitz-service-account
+  namespace: neuralblitz
+roleRef:
+  kind: Role
+  name: neuralblitz-role
+  apiGroup: rbac.authorization.k8s.io

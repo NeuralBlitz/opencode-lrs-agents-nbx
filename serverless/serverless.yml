@@ -1,0 +1,168 @@
+service: opencode-lrs-serverless
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.9
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 2048
+  timeout: 300
+  environment:
+    LRS_ENV: serverless
+    LRS_CACHE_ENABLED: true
+    LRS_MAX_MEMORY: 1536MB
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: arn:aws:logs:*:*:*
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:DeleteObject
+      Resource: arn:aws:s3:::${self:custom.cacheBucket}/*
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource: arn:aws:dynamodb:${self:provider.region}:${aws:accountId}:table/${self:custom.resultsTable}
+
+custom:
+  cacheBucket: opencode-lrs-cache-${self:provider.stage}
+  resultsTable: opencode-lrs-results-${self:provider.stage}
+  pythonRequirements:
+    dockerizePip: true
+    layer:
+      name: opencode-lrs-dependencies
+      description: Python dependencies for OpenCode LRS
+      compatibleRuntimes:
+        - python3.9
+
+package:
+  individually: true
+  exclude:
+    - '**/*'
+  include:
+    - 'src/**'
+    - 'lightweight_lrs.py'
+    - 'performance_optimization.py'
+    - 'precision_calibration.py'
+    - 'multi_agent_coordination.py'
+
+functions:
+  analyze:
+    handler: src/lambda_handler.analyze_handler
+    events:
+      - httpApi:
+          path: /api/lrs/analyze
+          method: post
+          cors: true
+    environment:
+      FUNCTION_TYPE: analyze
+
+  refactor:
+    handler: src/lambda_handler.refactor_handler
+    events:
+      - httpApi:
+          path: /api/lrs/refactor
+          method: post
+          cors: true
+    environment:
+      FUNCTION_TYPE: refactor
+
+  plan:
+    handler: src/lambda_handler.plan_handler
+    events:
+      - httpApi:
+          path: /api/lrs/plan
+          method: post
+          cors: true
+    environment:
+      FUNCTION_TYPE: plan
+
+  evaluate:
+    handler: src/lambda_handler.evaluate_handler
+    events:
+      - httpApi:
+          path: /api/lrs/evaluate
+          method: post
+          cors: true
+    environment:
+      FUNCTION_TYPE: evaluate
+
+  stats:
+    handler: src/lambda_handler.stats_handler
+    events:
+      - httpApi:
+          path: /api/lrs/stats
+          method: get
+          cors: true
+    environment:
+      FUNCTION_TYPE: stats
+
+  benchmark:
+    handler: src/lambda_handler.benchmark_handler
+    events:
+      - httpApi:
+          path: /api/benchmarks/run
+          method: post
+          cors: true
+    environment:
+      FUNCTION_TYPE: benchmark
+
+  health:
+    handler: src/lambda_handler.health_handler
+    events:
+      - httpApi:
+          path: /health
+          method: get
+          cors: true
+    environment:
+      FUNCTION_TYPE: health
+
+resources:
+  Resources:
+    CacheBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.cacheBucket}
+        VersioningConfiguration:
+          Status: Enabled
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+    ResultsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.resultsTable}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+plugins:
+  - serverless-python-requirements
+  - serverless-offline
+
+useDotenv: true

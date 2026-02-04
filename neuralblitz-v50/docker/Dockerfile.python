@@ -1,0 +1,44 @@
+# NeuralBlitz v50.0 - Omega Singularity Intelligence
+# Python Base Image
+FROM python:3.11-slim
+
+# Metadata
+LABEL maintainer="NeuralBlitz Contributors"
+LABEL version="v50.0.0"
+LABEL description="NeuralBlitz Python Implementation - Omega Singularity Architecture"
+
+# Environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV NEURALBLITZ_VERSION=v50.0.0
+ENV NEURALBLITZ_COHERENCE=1.0
+ENV GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY python/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy Python source code
+COPY python/ .
+
+# Create non-root user
+RUN useradd -m -u 1000 neuralblitz && chown -R neuralblitz:neuralblitz /app
+USER neuralblitz
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import neuralblitz; print('Coherence:', 1.0)" || exit 1
+
+# Default to Option E (NBCL Interpreter CLI)
+CMD ["python", "-m", "neuralblitz.cli", "version"]
+
+# For Option F (API Server), override CMD:
+# docker run -p 8080:8080 neuralblitz:v50.0 python -m neuralblitz.cli serve --port 8080

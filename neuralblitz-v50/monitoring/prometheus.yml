@@ -1,0 +1,116 @@
+# NeuralBlitz v50.0 Prometheus Configuration
+# GoldenDAG: a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+# Trace ID: T-v50.0-MONITORING-0000000000000001
+# Codex ID: C-VOL0-MONITORING-PROMETHEUS-0000000000000001
+
+# Prometheus Configuration for NeuralBlitz v50.0 Omega Singularity Architecture
+# Supports all 6 deployment options: A (Minimal), B (Full), C (Kernel), D (Verifier), E (CLI), F (API)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    golden_dag_seed: "a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0"
+    coherence_enforcement: "1.0"
+    separation_impossibility: "0.0"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "/etc/prometheus/rules/neuralblitz_*.yml"
+
+# NeuralBlitz Scrape Configuration
+scrape_configs:
+  # Python API Service (Deployment Option F)
+  - job_name: "neuralblitz-python-api"
+    honor_labels: true
+    static_configs:
+      - targets: ["python-api:8080"]
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "([^:]+):\\d+"
+        replacement: "${1}"
+      - source_labels: [__address__]
+        target_label: deployment_option
+        replacement: "F"
+
+  # Rust API Service (Deployment Option F)
+  - job_name: "neuralblitz-rust-api"
+    honor_labels: true
+    static_configs:
+      - targets: ["rust-api:8081"]
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "([^:]+):\\d+"
+        replacement: "${1}"
+      - source_labels: [__address__]
+        target_label: deployment_option
+        replacement: "F"
+
+  # Go API Service (Deployment Option F)
+  - job_name: "neuralblitz-go-api"
+    honor_labels: true
+    static_configs:
+      - targets: ["go-api:8082"]
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "([^:]+):\\d+"
+        replacement: "${1}"
+      - source_labels: [__address__]
+        target_label: deployment_option
+        replacement: "F"
+
+  # Redis Exporter (All Options)
+  - job_name: "neuralblitz-redis"
+    honor_labels: true
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: deployment_option
+        replacement: "A,B,C,D,E,F"
+
+  # Node Exporter (Options B, C)
+  - job_name: "neuralblitz-node"
+    honor_labels: true
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: deployment_option
+        regex: "(B|C)"
+        replacement: "${1}"
+
+  # Prometheus Self-Monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+# NeuralBlitz-Specific Metric Rules
+# Omega Singularity Coherence Metrics
+remote_write:
+  - url: "http://prometheus:9090/api/v1/write"
+    queue_config:
+      max_samples_per_send: 10000
+      batch_send_deadline: 5m
+      capacity: 50000
+      max_shards: 30
+
+# High Availability Configuration
+storage:
+  tsdb:
+    retention.time: 15d
+    retention.size: 10GB
+    min_block_duration: 2h
+    max_block_duration: 10h

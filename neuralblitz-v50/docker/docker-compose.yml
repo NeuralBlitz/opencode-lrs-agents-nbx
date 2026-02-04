@@ -1,0 +1,274 @@
+# NeuralBlitz v50.0 - Multi-Language Orchestration
+# Docker Compose configuration for all deployment options
+# GoldenDAG Seed: a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+
+version: '3.8'
+
+services:
+  # Python CLI Service (Option E - Default)
+  neuralblitz-python:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+      target: option-e
+    container_name: nb-python-cli
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=E
+      - NB_MEMORY_MB=75
+      - NB_COHERENCE=1.0
+      - NB_SEPARATION_IMPOSSIBILITY=0.0
+    volumes:
+      - python-data:/app/data
+      - ./logs/python:/app/logs
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: nbcl
+
+  # Python API Service (Option F)
+  neuralblitz-python-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+      target: option-f
+    container_name: nb-python-api
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=F
+      - NB_MEMORY_MB=200
+      - NB_SERVER_PORT=8080
+      - NB_COHERENCE=1.0
+      - NB_SEPARATION_IMPOSSIBILITY=0.0
+    ports:
+      - "8080:8080"
+    volumes:
+      - python-api-data:/app/data
+      - ./logs/python-api:/app/logs
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Go API Service (Option F)
+  neuralblitz-go:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.go
+      target: option-f
+    container_name: nb-go-api
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=F
+      - NB_MEMORY_MB=200
+      - NB_SERVER_PORT=8080
+      - NB_COHERENCE=1.0
+      - NB_SEPARATION_IMPOSSIBILITY=0.0
+      - GIN_MODE=release
+    ports:
+      - "8080:8080"
+    volumes:
+      - go-data:/app/data
+      - ./logs/go:/app/logs
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Rust API Service (Option F) - Port 8081
+  neuralblitz-rust:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.rust
+      target: option-f
+    container_name: nb-rust-api
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=F
+      - NB_MEMORY_MB=200
+      - NB_SERVER_PORT=8081
+      - RUST_LOG=info
+    ports:
+      - "8081:8081"
+    volumes:
+      - rust-data:/app/data
+      - ./logs/rust:/app/logs
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/neuralblitz", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Option A: Minimal Symbiotic Interface
+  neuralblitz-minimal:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.go
+      target: option-a
+    container_name: nb-minimal
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=A
+      - NB_MEMORY_MB=50
+    networks:
+      - neuralblitz-network
+    profiles:
+      - minimal
+
+  # Option B: Full Cosmic Symbiosis Node (High Memory)
+  neuralblitz-cosmic:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.go
+      target: option-b
+    container_name: nb-cosmic
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=B
+      - NB_MEMORY_MB=2400
+    deploy:
+      resources:
+        limits:
+          cpus: '16'
+          memory: 2400M
+        reservations:
+          cpus: '8'
+          memory: 1200M
+    networks:
+      - neuralblitz-network
+    profiles:
+      - cosmic
+
+  # Option C: Omega Prime Reality Kernel
+  neuralblitz-kernel:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+      target: option-c
+    container_name: nb-kernel
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=C
+      - NB_MEMORY_MB=847
+    networks:
+      - neuralblitz-network
+    profiles:
+      - kernel
+
+  # Option D: Universal Verifier
+  neuralblitz-verifier:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.rust
+      target: option-d
+    container_name: nb-verifier
+    environment:
+      - NB_VERSION=v50.0
+      - NB_GOLDEN_DAG_SEED=a8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0f2a4c6b8d0
+      - NB_OPTION=D
+      - NB_MEMORY_MB=128
+      - RUST_LOG=warn
+    networks:
+      - neuralblitz-network
+    profiles:
+      - verifier
+
+  # Supporting Infrastructure
+  redis:
+    image: redis:7-alpine
+    container_name: nb-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nb-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nb-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=neuralblitz
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/provisioning/dashboards/neuralblitz.json
+      - grafana-data:/var/lib/grafana
+    networks:
+      - neuralblitz-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+volumes:
+  python-data:
+  python-api-data:
+  go-data:
+  rust-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  neuralblitz-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
