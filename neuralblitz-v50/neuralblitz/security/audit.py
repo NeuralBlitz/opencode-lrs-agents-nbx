@@ -82,8 +82,12 @@ class AuditLogger:
         # Ensure directory exists
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Load last hash if log exists
-        if self.log_file.exists():
+        # Create file if it doesn't exist
+        if not self.log_file.exists():
+            self.log_file.touch()
+
+        # Load last hash if log has content
+        if self.log_file.exists() and self.log_file.stat().st_size > 0:
             self._load_last_hash()
 
     def _load_last_hash(self):

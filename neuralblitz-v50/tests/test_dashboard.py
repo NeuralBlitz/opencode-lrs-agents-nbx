@@ -6,6 +6,10 @@ import pytest
 import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
+
+# Skip dashboard tests if dash is not available
+pytest.importorskip("dash", reason="dash not available")
+
 from neuralblitz.visualization.dashboard import (
     DashboardMetrics,
     NeuralBlitzDashboard,

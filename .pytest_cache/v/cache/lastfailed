@@ -5,5 +5,10 @@
   "lrs_agents/integration-bridge/tests": true,
   "lrs_agents/tests": true,
   "neuralblitz-v50/tests/test_minimal.py::TestMinimalEngine": true,
-  "neuralblitz-v50/tests/test_minimal.py": true
+  "neuralblitz-v50/tests/test_minimal.py": true,
+  "neuralblitz-v50/tests/test_audit.py": true,
+  "neuralblitz-v50/tests/test_auth.py": true,
+  "neuralblitz-v50/tests/test_chaos.py": true,
+  "neuralblitz-v50/tests/test_dashboard.py": true,
+  "neuralblitz-v50/tests/test_tracing.py": true
 }

@@ -23,8 +23,12 @@ try:
 except ImportError:
     DASH_AVAILABLE = False
 
-# Import html for type hints even if dash not available
-import html as html_lib
+    # Create dummy html for type hints
+    class DummyHtml:
+        class Div:
+            pass
+
+    html = DummyHtml()
 
 try:
     import numpy as np
