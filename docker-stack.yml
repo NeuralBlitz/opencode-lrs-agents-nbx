@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  lrs-server:
+    image: ghcr.io/neuralblitz/go-lrs:latest
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+      - "8081:8081"
+    configs:
+      - source: lrs-config
+        target: /etc/go-lrs/default.yaml
+    environment:
+      - LRS_HTTP_PORT=8080
+      - LRS_GRPC_PORT=9090
+      - LRS_DB_HOST=postgres
+      - LRS_DB_PORT=5432
+      - LRS_REDIS_HOST=redis
+      - LRS_REDIS_PORT=6379
+    networks:
+      - lrs-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  postgres:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_USER: lrs_user
+      POSTGRES_PASSWORD: lrs_password
+      POSTGRES_DB: lrs_db
+    networks:
+      - lrs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lrs_user -d lrs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - lrs-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - lrs-network
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - lrs-network
+    ports:
+      - "3000:3000"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    ports:
+      - "16686:16686"
+      - "6831:6831"
+      - "14268:14268"
+    networks:
+      - lrs-network
+
+networks:
+  lrs-network:
+    driver: overlay
+    attachable: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+configs:
+  lrs-config:
+    file: ./configs/default.yaml
+
+secrets:
+  db-password:
+    file: ./secrets/db-password.txt
+  redis-password:
+    file: ./secrets/redis-password.txt

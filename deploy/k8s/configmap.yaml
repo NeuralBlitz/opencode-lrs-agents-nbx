@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-lrs-config
+  namespace: lrs
+data:
+  config.yaml: |
+    # Go-LRS Configuration
+    # All configuration can be overridden via environment variables
+
+    grpc:
+      port: 9090
+      max_connections: 100
+      cert_file: ""
+      key_file: ""
+
+    http:
+      port: 8080
+      read_timeout: 15
+      write_timeout: 15
+      static_dir: ""
+
+    metrics:
+      port: 9091
+      path: "/metrics"
+      disabled: false
+
+    log:
+      level: "info"
+      format: "json"
+
+    # Agent configuration
+    agent:
+      max_agents: 1000
+      default_precision:
+        alpha: 2.0
+        beta: 2.0
+      learning_rate: 0.1
+
+    # Policy configuration
+    policy:
+      max_policies: 10
+      min_confidence: 0.3
+      temperature: 1.0
+
+    # State configuration
+    state:
+      max_history: 100
+      max_checkpoints: 50
+
+    # Precision hierarchy
+    hierarchy:
+      propagation_rate: 0.3
+      decay_factor: 0.1
+
+    # Telemetry
+    telemetry:
+      enabled: true
+      sampling_rate: 1.0

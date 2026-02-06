@@ -1,0 +1,197 @@
+replicaCount: 3
+
+image:
+  repository: neuralblitz/go-lrs
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: registry-credentials
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: go-lrs
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  ports:
+    http: 80
+    grpc: 9090
+    metrics: 9091
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: lrs.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.ingress.example.com
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: topology.kubernetes.io/zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/name: go-lrs
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+  successThreshold: 1
+
+config:
+  grpc:
+    port: 9090
+    max_connections: 100
+  http:
+    port: 8080
+    read_timeout: 15
+    write_timeout: 15
+  metrics:
+    port: 9091
+    path: /metrics
+    disabled: false
+  log:
+    level: info
+    format: json
+  agent:
+    max_agents: 1000
+    default_precision:
+      alpha: 2.0
+      beta: 2.0
+    learning_rate: 0.1
+  policy:
+    max_policies: 10
+    min_confidence: 0.3
+    temperature: 1.0
+  state:
+    max_history: 100
+    max_checkpoints: 50
+  hierarchy:
+    propagation_rate: 0.3
+    decay_factor: 0.1
+  telemetry:
+    enabled: true
+    sampling_rate: 1.0
+
+externalDatabase:
+  enabled: false
+  host: postgres.example.com
+  port: 5432
+  user: go-lrs
+  password: change-me
+  name: go-lrs
+  sslMode: require
+
+redis:
+  enabled: false
+  host: redis.example.com
+  port: 6379
+  password: change-me
+  key: go-lrs
+
+persistentVolume:
+  enabled: false
+  mountPath: /data
+  size: 1Gi
+  storageClass: ""
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    namespace: monitoring
+    interval: 30s
+    scrapeTimeout: 10s
+
+priorityClassName: ""
+terminationGracePeriodSeconds: 30
+
+hostAliases: []
+  # - ip: "10.0.0.1"
+  #   hostnames:
+  #     - "example.local"
+
+dnsConfig: {}
+  # nameservers:
+  #   - 8.8.8.8
+  #   - 8.8.4.4
+  # searches:
+  #   - namespace.svc.cluster.local
+  # options:
+  #   - name: ndots
+  #     value: "2"
+
+schedulerName: ""
