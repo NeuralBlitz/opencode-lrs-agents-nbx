@@ -1,6 +1,6 @@
 module github.com/neuralblitz/go-lrs
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/gin-gonic/gin v1.9.1
@@ -51,10 +51,10 @@ require (
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect; Updated: Fixes Terrapin, SSH, and DoS CVEs
-	golang.org/x/net v0.38.0 // indirect; Updated: Fixes HTTP/2 Rapid Reset and XSS CVEs
-	golang.org/x/sys v0.31.0 // indirect; Updated: Required dependency for new crypto/net
-	golang.org/x/text v0.23.0 // indirect; Updated: Required dependency for new net
+	golang.org/x/crypto v0.45.0 // indirect; Updated: Fixes Terrapin, SSH, and DoS CVEs
+	golang.org/x/net v0.47.0 // indirect; Updated: Fixes HTTP/2 Rapid Reset and XSS CVEs
+	golang.org/x/sys v0.38.0 // indirect; Updated: Required dependency for new crypto/net
+	golang.org/x/text v0.31.0 // indirect; Updated: Required dependency for new net
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
